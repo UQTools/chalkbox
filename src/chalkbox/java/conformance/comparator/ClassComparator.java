@@ -136,7 +136,6 @@ public class ClassComparator extends CodeComparator<Class> {
                         subComparators.add(comparator);
                         actOverloadsLeft.remove(actOverload);
                         expOverloadsLeft.remove(expOverload);
-                        break;
                     }
                 }
             }
