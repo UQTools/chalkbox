@@ -87,10 +87,17 @@ public class JUnitListener extends RunListener {
     public void testFailure(Failure failure) throws Exception {
         super.testFailure(failure);
 
+        String failureString = failure.toString();
+        if (failureString.equals(failure.getTestHeader() + ": null")) {
+            failureString =
+                    failureString.substring(0, failureString.length() - 4);
+                    failureString += "No message given, refer to stack trace.";
+        }
+        
         if (this.currentResult != null) {
-            this.output.append(failure);
+            this.output.append(failureString);
             this.output.append("\n");
-            this.currentResult.output = failure.toString() + "\n\n"
+            this.currentResult.output = failureString + "\n\n"
                     + failure.getTrace().replaceAll("\r\n", "\n");
             this.currentResult.passed = false;
         }

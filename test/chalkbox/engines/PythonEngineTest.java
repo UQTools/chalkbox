@@ -32,6 +32,7 @@ public class PythonEngineTest {
                 StandardCharsets.UTF_8);
         String actual = Files.readString(Paths.get(RESULTS_PATH),
                 StandardCharsets.UTF_8);
+        actual = actual.replace("\\r\\n","\\n");
         System.err.println("expected: " + expected);
         System.err.println("actual: " + actual);
         assertEquals("Output JSON files are different", expected, actual);
