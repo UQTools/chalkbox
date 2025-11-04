@@ -188,9 +188,10 @@ public class Functionality {
         }
 
         StringWriter output = new StringWriter();
+        boolean didCompile = true;
 
         /* Compile the sample solution */
-        Compiler.compile(Compiler.getSourceFiles(solution), options.classPath,
+        didCompile = Compiler.compile(Compiler.getSourceFiles(solution), options.classPath,
                 solutionOutput.getUnmaskedPath(), output);
 
         String classPath = options.classPath
@@ -198,9 +199,13 @@ public class Functionality {
                 + solutionOutput.getUnmaskedPath();
 
         /* Compile the tests with the sample solution */
-        Compiler.compile(Compiler.getSourceFiles(tests), classPath,
-                testOutput.getUnmaskedPath(), output);
+        didCompile = Compiler.compile(Compiler.getSourceFiles(tests), classPath,
+                testOutput.getUnmaskedPath(), output) || didCompile;
         testCompiledOutputDirectory = testOutput.getUnmaskedPath();
+
+        if (!didCompile) {
+            System.out.println(output);
+        }
 
         /* Summarise tests using the solution. */
         for (String className : tests.getClasses("")) {
@@ -246,14 +251,22 @@ public class Functionality {
         */
 
         /* Class path contains dependencies and the compiled submission */
-        String classPath = options.classPath
+        String classPath = submission.getWorking().getUnmaskedPath("bin")
                 + System.getProperty("path.separator")
-                + submission.getWorking().getUnmaskedPath("bin");
+                + options.classPath;
         JSONArray testResults = (JSONArray) submission.getResults().get("tests");
         int totalNumTests = 0;
         JSONArray functionalityResults = new JSONArray();
         Map<String, TestClassInfo> testInfo = new HashMap<>();
-        for (String className : tests.getClasses("")) {
+        String[] testNames;
+        try {
+            testNames = submission.getSource().getFile("tasks").getContent().split("\n");
+        } catch (IOException e) {
+            System.out.println("Unable to find tasks file");
+            return submission;
+        }
+        for (String className : testNames) {
+            className = "demos." + className + "Test";
             List<Data> results = JUnitRunner.runTests(className, classPath);
             // There are no tests in file - skip over it.
             if (results.isEmpty()) {
@@ -329,11 +342,12 @@ public class Functionality {
         }
         double scaled = Math.ceil((total / possible) * options.weighting);
 
-        results += "\n$$\n\\dfrac{" + total + "}{" + possible + "} \\times " + options.weighting + " = " + scaled + "\n$$";
+        //results += "\n$$\n\\dfrac{" + total + "}{" + possible + "} \\times " + options.weighting + " = " + scaled + "\n$$";
+        results += "\n$$sum = "+total+"$$";
 
         Data data = new Data();
         data.set("name", "Functionality Tests");
-        data.set("score", scaled);
+        data.set("score", total);
         data.set("max_score", options.weighting);
         data.set("output", results);
         data.set("output_format", "md");
