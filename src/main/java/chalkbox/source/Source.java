@@ -40,6 +40,10 @@ public abstract class Source {
         }
     }
 
+    public String getName() {
+        return this.name;
+    }
+
     public String getClassPath() {
         return this.classPath;
     }
