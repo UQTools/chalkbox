@@ -29,10 +29,15 @@ public class JUnitListener extends RunListener {
     private TestResult currentResult;
     private int numFailed = 0;
     private StringBuilder output;
+    private boolean couldNotFindClass = false;
 
     public JUnitListener() {
         this.results = new ArrayList<>();
         this.output = new StringBuilder();
+    }
+
+    public void classMissing() {
+        this.couldNotFindClass = true;
     }
 
     @Override
@@ -135,7 +140,8 @@ public class JUnitListener extends RunListener {
             this.results.size() - this.numFailed,
             this.numFailed,
             this.results.size(),
-            this.output.toString()
+            this.output.toString(),
+            couldNotFindClass
         );
     }
 

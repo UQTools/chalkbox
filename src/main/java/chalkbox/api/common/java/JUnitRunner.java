@@ -50,11 +50,8 @@ public class JUnitRunner {
         try {
             runner.run(classLoader.loadClass(className));
         } catch (ClassNotFoundException e) {
-            try {
-                runner.run(classLoader.loadClass("test." + className)); // Hack for 2023s1
-            } catch (ClassNotFoundException e2) {
-                e.printStackTrace();
-            }
+            listener.classMissing();
+            e.printStackTrace();
         }
         return listener;
     }

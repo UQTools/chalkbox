@@ -12,6 +12,7 @@ import java.net.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -44,6 +45,20 @@ public abstract class Source {
         return this.name;
     }
 
+    public List<String> validateStructure(List<String> paths) {
+        List<String> missing = new ArrayList<>();
+        for (String path : paths) {
+            File file = new File(basePath + "/" + path);
+            if (!file.exists()) {
+                missing.add(path);
+            }
+        }
+        return missing;
+
+        //throw new StageException("Expecting to find the following paths in "
+        //        + getName() + " that were absent: \n" + String.join("\n", missing));
+    }
+
     public String getClassPath() {
         return this.classPath;
     }
@@ -55,15 +70,19 @@ public abstract class Source {
         return compile(getSrcBuildPath(), getSrcJavaFiles(), "");
     }
 
-    public CompilationResult compileTest() throws IOException {
+    public CompilationResult compileTest(String sourcePath) throws IOException {
         if (testCompilation != null) {
             return testCompilation;
         }
         return compile(
             getTestBuildPath(),
             getTestJavaFiles(),
-            getSrcBuildPath()
+            sourcePath
         );
+    }
+
+    public CompilationResult compileTest() throws IOException {
+        return compileTest(getSrcBuildPath());
     }
 
     private CompilationResult compile(

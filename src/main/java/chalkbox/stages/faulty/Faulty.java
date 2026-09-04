@@ -56,6 +56,10 @@ public class Faulty
 
     @Override
     public StageResult run(Submission submission, Solution solution) throws StageException {
+        List<String> missing = submission.validateStructure(List.of("test"));
+        if (!missing.isEmpty()) {
+            throw new StageException("A test directory was not included in your submission.");
+        }
         compileSolution(solution);
         /* Collect the list of broken solution folders */
         File solutionsFolder = new File(faultySolutions);
@@ -65,7 +69,8 @@ public class Faulty
         List<Solution> solutions = Arrays.stream(solutionFolders).map(folder -> new Solution(folder.getName(), folder.getPath(), solutionClassPath)).toList();
         compileSolutions(solutions);
 
-        return run(submission);
+        compileTests(submission, solution);
+        return runTests(submission, solution);
     }
 
     /** Mapping of faulty implementation names to their respective class path */
@@ -85,7 +90,14 @@ public class Faulty
                         "Unable to compile solution: " + compilation.output()
                 );
             }
-            compilation = solution.compileTest();
+        } catch (IOException e) {
+            throw new StageException(e);
+        }
+    }
+    private void compileSolutionAndTests(Solution solution) {
+        compileSolution(solution);
+        try {
+            var compilation = solution.compileTest();
             if (!compilation.success()) {
                 throw new StageException(
                         "Unable to compile tests: " + compilation.output()
@@ -112,7 +124,9 @@ public class Faulty
 
         for (Solution solution : solutions) {
             compileSolution(solution);
-            classPaths.put(solution.getName(), solution.getSrcBuildPath() + File.pathSeparator + solutionClassPath);
+            classPaths.put(solution.getName(), solution.getSrcBuildPath()
+                    + File.pathSeparator
+                    + String.join(File.pathSeparator, solutionClassPath));
         }
     }
 
@@ -132,21 +146,6 @@ public class Faulty
 //    }
 
     /**
-     * Runs the JUnit stage on the given submission.
-     *
-     * Firstly compiles the submitted tests, then if compilation was successful,
-     * runs them against all the faulty implementations.
-     *
-     * @param submission submission to assess
-     * @return given submission with extra test results indicating the results
-     * of the JUnit stage
-     */
-    public StageResult run(Submission submission) {
-        compileTests(submission);
-        return runTests(submission);
-    }
-
-    /**
      * Compiles the submitted JUnit tests with the correct implementation.
      *
      * Sets "extra_data.junit.compiles" to true/false based on whether at least
@@ -155,7 +154,7 @@ public class Faulty
      * @param submission submission containing tests to compile
      * @return given submission with extra test results
      */
-    private void compileTests(Submission submission) {
+    private void compileTests(Submission submission, Solution solution) {
         try {
             var compilation = submission.compileSrc();
             if (!compilation.success()) {
@@ -163,7 +162,7 @@ public class Faulty
                         "Unable to compile solution: " + compilation.output()
                 );
             }
-            compilation = submission.compileTest();
+            compilation = submission.compileTest(solution.getSrcBuildPath());
             if (!compilation.success()) {
                 throw new StageException(
                         "Unable to compile tests: " + compilation.output()
@@ -256,11 +255,13 @@ public class Faulty
      * @return given submission with extra test results, one for each faulty
      * implementation
      */
-    private StageResult runTests(Submission submission) {
+    private StageResult runTests(Submission submission, Solution sampleSolution) {
         Map<String, Integer> passes = new HashMap<>();
 //        Data junitInfo = new Data();
         for (String testClass : assessableTestClasses) {
-            String classPath = String.join(File.pathSeparator, solutionClassPath);
+            String classPath = String.join(File.pathSeparator, solutionClassPath)
+                    + File.pathSeparator + sampleSolution.getSrcBuildPath()
+                    + File.pathSeparator + submission.getTestBuildPath();
                     //+ File.pathSeparator
                     //+ submission.getWorking().getUnmaskedPath();
             JUnitResult results = JUnitRunner.runTestsCombined(testClass, classPath);
@@ -276,7 +277,8 @@ public class Faulty
         List<Result> tests = new ArrayList<>();
         for (String solution : classPaths.keySet()) {
             /* Class path for the particular solution */
-            String classPath = classPaths.get(solution);
+            String classPath = classPaths.get(solution)
+                    + File.pathSeparator + submission.getTestBuildPath();
                     //+ System.getProperty("path.separator")
                     //+ submission.getWorking().getUnmaskedPath();
 
@@ -287,11 +289,16 @@ public class Faulty
             /* Is the solution being tested the correct implementation? */
             boolean isCorrectSolution = solution.equals("solution");
 
+            List<String> missingTestClasses = new ArrayList<>();
+
             for (String testClass : assessableTestClasses) {
                 /* Run the JUnit tests */
                 JUnitResult results = JUnitRunner.runTestsCombined(testClass, classPath);
                 passed.put(testClass, results.passes() < passes.get(testClass));
                 classResults.add(results);
+                if (results.couldNotFindClass()) {
+                    missingTestClasses.add(testClass);
+                }
             }
 
             /* Mark awarded for correctly identifying a broken solution */
@@ -342,6 +349,12 @@ public class Faulty
                     solutionResult.setScore(0);
                 }
             }
+
+            for (String missingTestClass : missingTestClasses) {
+                joiner.add("\nNote: " + missingTestClass
+                        + " class could not be found. Ensure it is within the test directory and in the appropriate package.");
+            }
+
             joiner.add("\nTests that passed when run against a correct "
                     + "implementation: **" + totalSolutionPassed + "**");
             joiner.add("Tests that passed when run against this faulty "
@@ -361,7 +374,7 @@ public class Faulty
 
             joiner.add("\n### Details");
             if (totalFailed > 0) {
-                joiner.add("Tests which did not pass for this implementation:\n```text");
+                joiner.add("Tests which did not pass for this implementation (remember not passing for a faulty implementation is a good thing):\n```text");
             }
             for (JUnitResult classResult : classResults) {
                 String classOutput = classResult.output();
@@ -384,8 +397,8 @@ public class Faulty
         double total = Math.ceil((passingTests / (float) numFaultySolutions) * weighting);
 
         Result summary = new Result("JUnit Tests")
-                .setScore(total)
                 .setMaxScore(weighting)
+                .setScore(total)
                 .appendOutput("You correctly identified bugs in " + passingTests
                         + " out of " + numFaultySolutions
                         + " buggy solutions")
