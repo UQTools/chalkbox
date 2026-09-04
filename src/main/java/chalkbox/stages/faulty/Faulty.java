@@ -317,7 +317,7 @@ public class Faulty
 
             Result solutionResult = new Result(name);
             solutionResult.setVisibility(visibility);
-            solutionResult.setMaxScore(solutionWeighting);
+            //solutionResult.setMaxScore(solutionWeighting);
             /* The correct solution is not graded, but should still appear */
 //            if (!isCorrectSolution) {
 //                solutionResult.set("score", 0);
@@ -342,11 +342,11 @@ public class Faulty
                     joiner.add("\n✅ Outcome: Your unit tests correctly detected that this was a "
                             + "faulty implementation.");
                     passingTests += 1;
-                    solutionResult.setScore(solutionWeighting);
+                    solutionResult.setStatus(Status.PASSED);
                 } else {
                     joiner.add("\n❌ Outcome: Your unit tests did not correctly detect that this "
                             + "was a faulty implementation.");
-                    solutionResult.setScore(0);
+                    solutionResult.setStatus(Status.FAILED);
                 }
             }
 
