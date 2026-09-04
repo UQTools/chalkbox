@@ -104,11 +104,11 @@ public class Functionality
 
         // Path contains dependencies and the compile submission
         classPath =
-        solution.getClassPath() +
-        File.pathSeparator +
-        submission.getSrcBuildPath() +
-        File.pathSeparator +
-        solution.getTestBuildPath();
+            solution.getClassPath() +
+            File.pathSeparator +
+            solution.getTestBuildPath() +
+            File.pathSeparator +
+            submission.getSrcBuildPath();
         var submissionResults = this.runTests(tests, classPath);
 
         var totalNumTests = 0;
